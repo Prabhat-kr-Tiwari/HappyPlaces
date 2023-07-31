@@ -1,18 +1,16 @@
-package com.example.happyplaces
+package com.example.happyplaces.New.activities
 
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.happyplaces.ApplicationClass.PlaceApplicationClass
 import com.example.happyplaces.DAO.PlaceDao
 import com.example.happyplaces.Model.PlaceEntity
+import com.example.happyplaces.R
 import com.example.happyplaces.adpater.placeAdapter
 import com.example.happyplaces.databinding.ActivityMainBinding
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -28,7 +26,7 @@ class MainActivity : AppCompatActivity() {
 //            showAdapterData()
 //
 //        }
-        val placeDao = (application as PlaceApplicationClass).db.placedao()
+        /*val placeDao = (application as PlaceApplicationClass).db.placedao()
         lifecycleScope.launch {
 
             placeDao.getAll().collect {
@@ -36,7 +34,7 @@ class MainActivity : AppCompatActivity() {
                 val list = ArrayList(it)
                 setUpListOfDataInRecyclerView(list, placeDao)
             }
-        }
+        }*/
 
         binding.fabAddHappyPlace.setOnClickListener {
             val intent = Intent(this, AddHappyPlaceActivity::class.java)

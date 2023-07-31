@@ -1,11 +1,12 @@
-package com.example.happyplaces
+package com.example.happyplaces.New.activities
 
 
-import android.Manifest.permission.READ_EXTERNAL_STORAGE
-import android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+import android.app.Activity
 import android.app.AlertDialog
 import android.app.DatePickerDialog
 import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -13,34 +14,32 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import androidx.databinding.DataBindingUtil
-import com.example.happyplaces.databinding.ActivityAddHappyPlaceBinding
-import com.karumi.dexter.Dexter
-import com.karumi.dexter.MultiplePermissionsReport
-import com.karumi.dexter.PermissionToken
-import com.karumi.dexter.listener.PermissionGrantedResponse
-import com.karumi.dexter.listener.PermissionRequest
-import com.karumi.dexter.listener.multi.MultiplePermissionsListener
-import com.karumi.dexter.listener.single.PermissionListener
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-
 import android.provider.MediaStore
 import android.provider.Settings
+import android.util.Log
+import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
+import androidx.databinding.DataBindingUtil
 import androidx.lifecycle.lifecycleScope
 import com.example.happyplaces.ApplicationClass.PlaceApplicationClass
 import com.example.happyplaces.DAO.PlaceDao
 import com.example.happyplaces.Model.PlaceEntity
+import com.example.happyplaces.R
+import com.example.happyplaces.databinding.ActivityAddHappyPlaceBinding
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.UUID
 
 class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
     lateinit var binding: ActivityAddHappyPlaceBinding
@@ -58,7 +57,7 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
 
 
         //getting the database instance
-        val placeDao=(application as PlaceApplicationClass).db.placedao()
+        val placeDao = (application as PlaceApplicationClass).db.placedao()
         // setSupportActionBar(binding.toolbar_add_place)
         val toolbar: Toolbar = binding.toolbarAddPlace
         setSupportActionBar(toolbar)
@@ -79,8 +78,7 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
         binding.tvAddImage.setOnClickListener(this)
 
 
-
-        binding.btnSave.setOnClickListener { addRecord(placeDao) }
+        //binding.btnSave.setOnClickListener { addRecord(placeDao) }
 
     }
 
@@ -97,22 +95,26 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
                     cal.get(Calendar.DAY_OF_MONTH)
                 ).show()
             }
-            R.id.tv_add_image->{
-                val picturedialog=AlertDialog.Builder(this)
-                picturedialog.setTitle("Select Action")
-                val pictureDialogItems= arrayOf("Select From galary","Capture Photo from Camera")
-                picturedialog.setItems(pictureDialogItems){
 
-                    dialog ,which->
-                    when(which){
-                        0->{
+            R.id.tv_add_image -> {
+                val picturedialog = AlertDialog.Builder(this)
+                picturedialog.setTitle("Select Action")
+                val pictureDialogItems = arrayOf("Select From galary", "Capture Photo from Camera")
+                picturedialog.setItems(pictureDialogItems) {
+
+                        dialog, which ->
+                    when (which) {
+                        0 -> {
                             choosePhotoFromGalary()
-                            Toast.makeText(this, "Select From galary",
-                                Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this, "Select From galary",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
-                        1->{
-                            Toast.makeText(this, "Capture Photo from Camera",
-                                Toast.LENGTH_SHORT).show()}
+
+                        1 -> {
+                            takePhotoFromCamera()
+                        }
                     }
 
                 }
@@ -122,27 +124,49 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-    private fun choosePhotoFromGalary() {
+    private fun takePhotoFromCamera() {
+        if (allPermissionsGranted()) {
+            //viewModel.startCamera(enableVideoBtn, enableImageBtn, autoCapture)
+            Toast.makeText(this, "Read and write are granted", Toast.LENGTH_SHORT).show()
 
+            val galleryIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+
+            startActivityForResult(galleryIntent, CAMERA)
+
+        } else {
+            showRationalDialogPermission()
+            /* ActivityCompat.requestPermissions(
+                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+             )*/
+        }
+
+    }
+
+    private fun choosePhotoFromGalary() {
 
 
         if (allPermissionsGranted()) {
             //viewModel.startCamera(enableVideoBtn, enableImageBtn, autoCapture)
             Toast.makeText(this, "Read and write are granted", Toast.LENGTH_SHORT).show()
+
+            val galleryIntent =
+                Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+
+            startActivityForResult(galleryIntent, GALLERY)
+
         } else {
             showRationalDialogPermission()
-           /* ActivityCompat.requestPermissions(
-                this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
-            )*/
+            /* ActivityCompat.requestPermissions(
+                 this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS
+             )*/
         }
 
     }
 
 
-
     private fun showRationalDialogPermission() {
         AlertDialog.Builder(this).setMessage("You have turned of the permission")
-            .setPositiveButton("Got tot setting"){ _, _ ->
+            .setPositiveButton("Got tot setting") { _, _ ->
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                     val uri = Uri.fromParts("package", packageName, null)
@@ -179,27 +203,25 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
                 // based on your app's requirements.
             }
         }
+
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
             baseContext, it
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    companion object {
 
+    private val REQUIRED_PERMISSIONS =
+        mutableListOf(
+            android.Manifest.permission.CAMERA,
+            android.Manifest.permission.READ_EXTERNAL_STORAGE,
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ).apply {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            }
+        }.toTypedArray()
 
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS =
-            mutableListOf(
-                android.Manifest.permission.CAMERA,
-                android.Manifest.permission.READ_EXTERNAL_STORAGE,
-                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-            ).apply {
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                }
-            }.toTypedArray()
-    }
 
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -210,12 +232,12 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
 
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
-               // viewModel.startCamera(enableVideoBtn, enableImageBtn, autoCapture)
+                // viewModel.startCamera(enableVideoBtn, enableImageBtn, autoCapture)
             } else {
-               /* UtilityFunctions.showToast(
-                    this,
-                    "Permissions not granted by the user.",
-                )*/
+                /* UtilityFunctions.showToast(
+                     this,
+                     "Permissions not granted by the user.",
+                 )*/
                 Toast.makeText(this, "permission not granted", Toast.LENGTH_SHORT).show()
                 finish()
             }
@@ -229,20 +251,29 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
         binding.etDate.setText(sdf.format(cal.time).toString())
 
     }
+
     fun addRecord(placeDao: PlaceDao) {
-        val title=binding.etTitle.text.toString()
-        val description=binding.etDescription.text.toString()
-        val date=binding.etDate.text.toString()
-        val location=binding.etDate.text.toString()
-        val image=binding.ivPlaceImage.setImageResource(R.drawable.img)
+        val title = binding.etTitle.text.toString()
+        val description = binding.etDescription.text.toString()
+        val date = binding.etDate.text.toString()
+        val location = binding.etDate.text.toString()
+        val image = binding.ivPlaceImage.setImageResource(R.drawable.img)
         val imageByteArray = convertDrawableToByteArray(R.drawable.img)
 
 
-        if (title.isNotEmpty() && description.isNotEmpty()&&date.isNotEmpty()&&location.isNotEmpty()) {
+        if (title.isNotEmpty() && description.isNotEmpty() && date.isNotEmpty() && location.isNotEmpty()) {
 
             //launching coroutine scope so that it would run in background
             lifecycleScope.launch {
-                placeDao.insert(PlaceEntity(title = title, description = description,date=date, location = location, image = imageByteArray))
+                placeDao.insert(
+                    PlaceEntity(
+                        title = title,
+                        description = description,
+                        date = date,
+                        location = location,
+                        image = imageByteArray
+                    )
+                )
                 Toast.makeText(applicationContext, "Record Saved", Toast.LENGTH_SHORT).show()
 
                 //after adding the data we need to clear the record
@@ -264,6 +295,7 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
 
 
     }
+
     private fun convertDrawableToByteArray(drawableResId: Int): ByteArray? {
         val bitmap = BitmapFactory.decodeResource(resources, drawableResId)
         return bitmap?.let { bitmapToByteArray(it) }
@@ -274,4 +306,73 @@ class AddHappyPlaceActivity : AppCompatActivity(), View.OnClickListener {
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, byteArrayOutputStream)
         return byteArrayOutputStream.toByteArray()
     }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        Toast.makeText(this, "onActivityResult is called", Toast.LENGTH_SHORT).show()
+
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode == Activity.RESULT_OK) {
+            Toast.makeText(this, "$requestCode", Toast.LENGTH_SHORT).show()
+
+            if (requestCode == GALLERY) {
+                if (data != null) {
+                    val contentUri = data.data
+                    try {
+                        Toast.makeText(this, "image get", Toast.LENGTH_LONG).show()
+                        val selectedImageBitmap =
+                            MediaStore.Images.Media.getBitmap(this.contentResolver, contentUri)
+
+                        val saveImageToInternalStorage= saveImageToInternalStorage(selectedImageBitmap)
+                        Log.d("saved image","path :: $saveImageToInternalStorage")
+                        binding.ivPlaceImage.setImageBitmap(selectedImageBitmap)
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                        Toast.makeText(this, "failed to get image from gallery", Toast.LENGTH_SHORT)
+                            .show()
+
+                    }
+
+
+                }
+
+            }else if(requestCode== CAMERA){
+                val thumbnail:Bitmap=data!!.extras!!.get("data") as Bitmap
+                val saveImageToInternalStorage= saveImageToInternalStorage(thumbnail)
+                Log.d("saved image","path :: $saveImageToInternalStorage")
+                binding.ivPlaceImage.setImageBitmap(thumbnail)
+            }
+        }
+    }
+
+    private fun saveImageToInternalStorage(bitmap: Bitmap):Uri{
+        val wrapper= ContextWrapper(applicationContext)
+        var file=wrapper.getDir(IMAGE_DIRECTORY,Context.MODE_PRIVATE)
+        file= File(file,"${UUID.randomUUID()}.jpg")
+        try{
+            val stream:OutputStream=FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.JPEG,100,stream)
+            stream.flush()
+            stream.close()
+
+        }catch (e:IOException){
+            e.printStackTrace()
+        }
+
+        return Uri.parse(file.absolutePath)
+
+
+
+
+
+    }
+
+    companion object {
+        private const val GALLERY = 1
+
+
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private const val CAMERA = 2
+        private const val IMAGE_DIRECTORY="HappyPlacesImages"
+    }
+
 }
